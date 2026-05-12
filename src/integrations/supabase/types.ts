@@ -14,7 +14,142 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      analyses: {
+        Row: {
+          algorithm: string
+          created_at: string
+          dataset_id: string
+          id: string
+          params: Json
+          result: Json
+          user_id: string
+        }
+        Insert: {
+          algorithm: string
+          created_at?: string
+          dataset_id: string
+          id?: string
+          params?: Json
+          result?: Json
+          user_id: string
+        }
+        Update: {
+          algorithm?: string
+          created_at?: string
+          dataset_id?: string
+          id?: string
+          params?: Json
+          result?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analyses_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crimes: {
+        Row: {
+          arrest: boolean | null
+          dataset_id: string
+          description: string | null
+          district: string | null
+          domestic: boolean | null
+          id: number
+          latitude: number | null
+          location_description: string | null
+          longitude: number | null
+          occurred_at: string | null
+          primary_type: string | null
+          user_id: string
+        }
+        Insert: {
+          arrest?: boolean | null
+          dataset_id: string
+          description?: string | null
+          district?: string | null
+          domestic?: boolean | null
+          id?: number
+          latitude?: number | null
+          location_description?: string | null
+          longitude?: number | null
+          occurred_at?: string | null
+          primary_type?: string | null
+          user_id: string
+        }
+        Update: {
+          arrest?: boolean | null
+          dataset_id?: string
+          description?: string | null
+          district?: string | null
+          domestic?: boolean | null
+          id?: number
+          latitude?: number | null
+          location_description?: string | null
+          longitude?: number | null
+          occurred_at?: string | null
+          primary_type?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crimes_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      datasets: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          row_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          row_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          row_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
