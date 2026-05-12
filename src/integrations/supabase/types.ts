@@ -110,21 +110,30 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          original_row_count: number
           row_count: number
+          source_bytes: number | null
+          source_filename: string | null
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          original_row_count?: number
           row_count?: number
+          source_bytes?: number | null
+          source_filename?: string | null
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          original_row_count?: number
           row_count?: number
+          source_bytes?: number | null
+          source_filename?: string | null
           user_id?: string
         }
         Relationships: []
