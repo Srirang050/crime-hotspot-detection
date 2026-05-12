@@ -91,8 +91,7 @@ export function parseCrimeCsvStream(
         const now = Date.now();
         if (onProgress && now - lastTick > 200) {
           lastTick = now;
-          // @ts-expect-error - papaparse exposes cursor on parser
-          const bytesRead = parser?.getCharIndex?.() ?? 0;
+          const bytesRead = (parser as any)?.getCharIndex?.() ?? 0;
           onProgress({ rows: totalRows, valid: validRows, bytesRead, totalBytes: file.size });
         }
       },
