@@ -15,7 +15,10 @@ export function StatCard({ label, value, icon: Icon, accent = "primary", suffix 
       <div className="flex items-start justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
-          <motion.div className="mt-2 font-display text-3xl font-bold">{rounded}<span className="text-base ml-0.5 text-muted-foreground">{suffix}</span></motion.div>
+          <div className="mt-2 font-display text-3xl font-bold">
+            <motion.span>{rounded}</motion.span>
+            <span className="text-base ml-0.5 text-muted-foreground">{suffix}</span>
+          </div>
         </div>
         <div className="h-9 w-9 rounded-lg grid place-items-center" style={{ background: `${color}22`, color }}>
           <Icon className="h-4 w-4" />
