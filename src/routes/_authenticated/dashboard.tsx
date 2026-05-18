@@ -52,10 +52,8 @@ function Dashboard() {
     const flagged = scoringPoints.filter((_, i) => scores[i] >= cutoff);
     const an = flagged.slice(0, 120);
     void labels;
-    return { clusters: c, anomalies: an, anomalyCount: flagged.length } as any;
+    return { clusters: c, anomalies: an };
   }, [points]);
-  const anomalyCount = (anomalies as any).length ? anomalies.length : 0;
-  void anomalyCount;
 
   const arrests = rows.filter(r => r.arrest).length;
   const arrestRate = rows.length ? Math.round((arrests / rows.length) * 100) : 0;
