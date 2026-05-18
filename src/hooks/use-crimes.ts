@@ -23,7 +23,7 @@ export function useCrimes() {
       // Page through to avoid 1000-row limit
       const all: any[] = [];
       const PAGE = 1000;
-      for (let from = 0; from < 10000; from += PAGE) {
+      for (let from = 0; from < 250000; from += PAGE) {
         const { data, error } = await supabase.from("crimes")
           .select("id, occurred_at, primary_type, description, location_description, arrest, domestic, district, latitude, longitude")
           .eq("dataset_id", datasetId).range(from, from + PAGE - 1);
