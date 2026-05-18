@@ -22,20 +22,21 @@ function pick(row: Record<string, any>, keys: string[]): any {
 }
 
 function rowToCrime(row: Record<string, any>): ParsedCrime | null {
-  const lat = num(pick(row, ["latitude", "lat", "y coordinate"]));
-  const lng = num(pick(row, ["longitude", "lng", "lon", "x coordinate"]));
+  const lat = num(pick(row, ["latitude", "lat", "y coordinate", "y_coordinate", "y", "latitude_y", "lat_y"]));
+  const lng = num(pick(row, ["longitude", "lng", "lon", "long", "x coordinate", "x_coordinate", "x", "longitude_x", "lon_x"]));
   if (lat == null || lng == null) return null;
-  const date = pick(row, ["date", "occurred_at", "datetime", "occurrence_date"]);
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  const date = pick(row, ["date", "occurred_at", "datetime", "occurrence_date", "report date", "report_date", "incident_date", "incident date", "occurred_on", "occurred_date", "date_occurred", "date_reported", "event_date", "timestamp", "time"]);
   let occurred_at: string | null = null;
   if (date) { const d = new Date(date); if (!isNaN(+d)) occurred_at = d.toISOString(); }
   return {
     occurred_at,
-    primary_type: str(pick(row, ["primary type", "primary_type", "type", "category", "offense"])),
-    description: str(pick(row, ["description", "desc"])),
-    location_description: str(pick(row, ["location description", "location_description", "location"])),
+    primary_type: str(pick(row, ["primary type", "primary_type", "type", "category", "offense", "offense_type", "offence", "crime", "crime_type", "crime type", "incident_type", "incident type", "offense_category", "ucr_category"])),
+    description: str(pick(row, ["description", "desc", "offense_description", "offence_description", "crime_description", "details", "summary", "narrative"])),
+    location_description: str(pick(row, ["location description", "location_description", "location", "place", "address", "premise", "premise_description", "place_of_occurrence"])),
     arrest: bool(pick(row, ["arrest"])),
     domestic: bool(pick(row, ["domestic"])),
-    district: str(pick(row, ["district", "beat", "ward"])),
+    district: str(pick(row, ["district", "beat", "ward", "precinct", "zone", "neighborhood", "neighbourhood", "borough", "area", "division", "sector"])),
     latitude: lat, longitude: lng,
   };
 }
