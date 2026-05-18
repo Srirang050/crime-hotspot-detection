@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCrimes, useDatasets } from "@/hooks/use-crimes";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Activity, AlertTriangle, MapPin, Database, Brain, ArrowRight } from "lucide-react";
-import { useMemo, lazy, Suspense } from "react";
+import { useMemo, lazy, Suspense, useEffect } from "react";
 import { bucketByMonth, bucketByType, bucketByHour, kmeans, isolationForest } from "@/lib/ml";
 import { useActiveDatasetId, useHydrateStore, setActiveDatasetId } from "@/lib/store";
 import { motion } from "framer-motion";
@@ -21,8 +21,13 @@ function Dashboard() {
   const crimes = useCrimes();
   const rows = crimes.data ?? [];
 
-  // Auto-select most recent dataset
-  if (!activeId && datasets.data?.[0]) setActiveDatasetId(datasets.data[0].id);
+  // Auto-select most recent dataset, or fall back if active one was deleted
+  useEffect(() => {
+    const list = datasets.data;
+    if (!list || list.length === 0) return;
+    const exists = activeId && list.some((d) => d.id === activeId);
+    if (!exists) setActiveDatasetId(list[0].id);
+  }, [datasets.data, activeId]);
 
   const monthly = useMemo(() => bucketByMonth(rows as any).slice(-18), [rows]);
   const hours = useMemo(() => bucketByHour(rows as any), [rows]);
@@ -50,7 +55,12 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <Header total={rows.length} />
+      <Header
+        total={rows.length}
+        datasets={datasets.data ?? []}
+        activeId={activeId}
+        onChange={(id) => setActiveDatasetId(id)}
+      />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Incidents" value={rows.length} icon={Activity} accent="primary" />
         <StatCard label="Hotspot Clusters" value={clusters.length} icon={MapPin} accent="cyan" />
