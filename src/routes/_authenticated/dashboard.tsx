@@ -36,14 +36,21 @@ function Dashboard() {
 
   const { clusters, anomalies } = useMemo(() => {
     if (points.length < 30) return { clusters: [], anomalies: [] };
-    const { centers, labels, sizes } = kmeans(points, 6);
+    // Scale K with dataset size so clusters reflect the data, not a constant
+    const k = Math.max(3, Math.min(12, Math.round(Math.sqrt(points.length / 200))));
+    const { centers, labels, sizes } = kmeans(points, k);
     // risk: cluster density
     const maxSize = Math.max(...sizes, 1);
     const c = centers.map((ct, i) => ({ ...ct, size: sizes[i], risk: sizes[i] / maxSize }));
-    const scores = isolationForest(points, 30, 200);
+    const sampleSize = Math.min(points.length, 1500);
+    const scoringPoints = points.length > sampleSize
+      ? points.filter((_, i) => i % Math.ceil(points.length / sampleSize) === 0)
+      : points;
+    const scores = isolationForest(scoringPoints, 30, 200);
     const sorted = [...scores].sort((a, b) => b - a);
     const cutoff = sorted[Math.floor(sorted.length * 0.03)] ?? 0.7;
-    const an = points.filter((_, i) => scores[i] >= cutoff).slice(0, 80);
+    const flagged = scoringPoints.filter((_, i) => scores[i] >= cutoff);
+    const an = flagged.slice(0, 120);
     void labels;
     return { clusters: c, anomalies: an };
   }, [points]);
