@@ -142,7 +142,8 @@ function Dashboard() {
   );
 }
 
-function Header({ total }: { total: number }) {
+type DatasetLite = { id: string; name: string; row_count: number };
+function Header({ total, datasets, activeId, onChange }: { total: number; datasets: DatasetLite[]; activeId: string | null; onChange: (id: string) => void }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
@@ -150,6 +151,22 @@ function Header({ total }: { total: number }) {
         <h1 className="font-display text-3xl md:text-4xl font-bold mt-1">Operational <span className="gradient-text">Overview</span></h1>
         <div className="text-sm text-muted-foreground mt-1">{total.toLocaleString()} incidents loaded</div>
       </div>
+      {datasets.length > 0 && (
+        <div className="flex items-center gap-2">
+          <label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Dataset</label>
+          <select
+            value={activeId ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+            className="glass rounded-lg px-3 py-2 text-sm bg-transparent border border-border/40 focus:outline-none focus:ring-2 focus:ring-primary/40 min-w-[220px]"
+          >
+            {datasets.map((d) => (
+              <option key={d.id} value={d.id} className="bg-background">
+                {d.name} ({d.row_count.toLocaleString()})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   );
 }
