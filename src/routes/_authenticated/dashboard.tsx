@@ -32,6 +32,9 @@ function Dashboard() {
   const monthly = useMemo(() => bucketByMonth(rows as any).slice(-18), [rows]);
   const hours = useMemo(() => bucketByHour(rows as any), [rows]);
   const types = useMemo(() => bucketByType(rows as any, 6), [rows]);
+  const chartNotice = rows.length > 0 && (monthly.length === 0 || types.length === 0)
+    ? "This dataset is missing parsed date or category fields. Re-upload it to apply the improved column matching."
+    : null;
   const points = useMemo(() => rows.filter(r => r.latitude != null && r.longitude != null).map(r => ({ lat: r.latitude!, lng: r.longitude! })), [rows]);
 
   const { clusters, anomalies } = useMemo(() => {
@@ -64,6 +67,7 @@ function Dashboard() {
     <div className="space-y-6">
       <Header
         total={rows.length}
+        notice={chartNotice}
         datasets={datasets.data ?? []}
         activeId={activeId}
         onChange={(id) => setActiveDatasetId(id)}
@@ -84,35 +88,39 @@ function Dashboard() {
             </div>
           </div>
           <div className="h-64">
-            <ResponsiveContainer>
-              <AreaChart data={monthly}>
-                <defs>
-                  <linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="oklch(0.7 0.27 305)" stopOpacity={0.7} />
-                    <stop offset="100%" stopColor="oklch(0.72 0.22 245)" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="oklch(0.5 0.1 280 / 0.15)" />
-                <XAxis dataKey="label" stroke="oklch(0.7 0.04 260)" fontSize={11} />
-                <YAxis stroke="oklch(0.7 0.04 260)" fontSize={11} />
-                <Tooltip contentStyle={{ background: "oklch(0.18 0.04 268)", border: "1px solid oklch(0.5 0.1 280 / 0.4)", borderRadius: 8 }} />
-                <Area dataKey="count" stroke="oklch(0.75 0.22 295)" fill="url(#g1)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {monthly.length > 0 ? (
+              <ResponsiveContainer key={`monthly-${activeId}`}>
+                <AreaChart data={monthly}>
+                  <defs>
+                    <linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="oklch(0.7 0.27 305)" stopOpacity={0.7} />
+                      <stop offset="100%" stopColor="oklch(0.72 0.22 245)" stopOpacity={0.05} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="oklch(0.5 0.1 280 / 0.15)" />
+                  <XAxis dataKey="label" stroke="oklch(0.7 0.04 260)" fontSize={11} />
+                  <YAxis stroke="oklch(0.7 0.04 260)" fontSize={11} />
+                  <Tooltip contentStyle={{ background: "oklch(0.18 0.04 268)", border: "1px solid oklch(0.5 0.1 280 / 0.4)", borderRadius: 8 }} />
+                  <Area dataKey="count" stroke="oklch(0.75 0.22 295)" fill="url(#g1)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : <ChartEmpty label="No date values found" />}
           </div>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl p-5">
           <div className="font-display font-semibold mb-4">Top Categories</div>
           <div className="h-64">
-            <ResponsiveContainer>
-              <BarChart data={types} layout="vertical" margin={{ left: 24 }}>
-                <XAxis type="number" stroke="oklch(0.7 0.04 260)" fontSize={11} />
-                <YAxis type="category" dataKey="type" stroke="oklch(0.7 0.04 260)" fontSize={11} width={110} />
-                <Tooltip contentStyle={{ background: "oklch(0.18 0.04 268)", border: "1px solid oklch(0.5 0.1 280 / 0.4)", borderRadius: 8 }} />
-                <Bar dataKey="count" fill="oklch(0.72 0.22 245)" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {types.length > 0 ? (
+              <ResponsiveContainer key={`types-${activeId}`}>
+                <BarChart data={types} layout="vertical" margin={{ left: 24 }}>
+                  <XAxis type="number" stroke="oklch(0.7 0.04 260)" fontSize={11} />
+                  <YAxis type="category" dataKey="type" stroke="oklch(0.7 0.04 260)" fontSize={11} width={110} />
+                  <Tooltip contentStyle={{ background: "oklch(0.18 0.04 268)", border: "1px solid oklch(0.5 0.1 280 / 0.4)", borderRadius: 8 }} />
+                  <Bar dataKey="count" fill="oklch(0.72 0.22 245)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <ChartEmpty label="No category values found" />}
           </div>
         </motion.div>
       </div>
