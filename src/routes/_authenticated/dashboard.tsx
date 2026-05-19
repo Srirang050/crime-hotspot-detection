@@ -19,6 +19,7 @@ function Dashboard() {
   const datasets = useDatasets();
   const activeId = useActiveDatasetId();
   const crimes = useCrimes();
+  const chartsLoading = crimes.isLoading || crimes.isFetching;
   const rows = crimes.data ?? [];
 
   // Auto-select most recent dataset, or fall back if active one was deleted
@@ -89,7 +90,7 @@ function Dashboard() {
             </div>
           </div>
           <div className="h-64">
-            {monthly.length > 0 ? (
+            {chartsLoading ? <ChartEmpty label="Loading selected dataset…" /> : monthly.length > 0 ? (
               <ResponsiveContainer key={`monthly-${activeId}`}>
                 <AreaChart data={monthly}>
                   <defs>
@@ -112,7 +113,7 @@ function Dashboard() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl p-5">
           <div className="font-display font-semibold mb-4">Top Categories</div>
           <div className="h-64">
-            {types.length > 0 ? (
+            {chartsLoading ? <ChartEmpty label="Loading selected dataset…" /> : types.length > 0 ? (
               <ResponsiveContainer key={`types-${activeId}`}>
                 <BarChart data={types} layout="vertical" margin={{ left: 24 }}>
                   <XAxis type="number" stroke="oklch(0.7 0.04 260)" fontSize={11} />
@@ -142,7 +143,7 @@ function Dashboard() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl p-5">
           <div className="font-display font-semibold mb-4">Hour-of-Day Activity</div>
           <div className="h-[420px]">
-            {hasDates ? (
+            {chartsLoading ? <ChartEmpty label="Loading selected dataset…" /> : hasDates ? (
               <ResponsiveContainer key={`hours-${activeId}`}>
                 <BarChart data={hours}>
                   <CartesianGrid stroke="oklch(0.5 0.1 280 / 0.15)" />
