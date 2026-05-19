@@ -158,13 +158,14 @@ function Dashboard() {
 }
 
 type DatasetLite = { id: string; name: string; row_count: number };
-function Header({ total, datasets, activeId, onChange }: { total: number; datasets: DatasetLite[]; activeId: string | null; onChange: (id: string) => void }) {
+function Header({ total, notice, datasets, activeId, onChange }: { total: number; notice: string | null; datasets: DatasetLite[]; activeId: string | null; onChange: (id: string) => void }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
         <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Command Center</div>
         <h1 className="font-display text-3xl md:text-4xl font-bold mt-1">Operational <span className="gradient-text">Overview</span></h1>
         <div className="text-sm text-muted-foreground mt-1">{total.toLocaleString()} incidents loaded</div>
+        {notice && <div className="text-xs text-warning mt-2 max-w-xl">{notice}</div>}
       </div>
       {datasets.length > 0 && (
         <div className="flex items-center gap-2">
@@ -182,6 +183,14 @@ function Header({ total, datasets, activeId, onChange }: { total: number; datase
           </select>
         </div>
       )}
+    </div>
+  );
+}
+
+function ChartEmpty({ label }: { label: string }) {
+  return (
+    <div className="h-full grid place-items-center text-center text-sm text-muted-foreground border border-border/30 rounded-lg bg-secondary/10">
+      {label}
     </div>
   );
 }
