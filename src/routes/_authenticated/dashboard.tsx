@@ -32,7 +32,8 @@ function Dashboard() {
   const monthly = useMemo(() => bucketByMonth(rows as any).slice(-18), [rows]);
   const hours = useMemo(() => bucketByHour(rows as any), [rows]);
   const types = useMemo(() => bucketByType(rows as any, 6), [rows]);
-  const chartNotice = rows.length > 0 && (monthly.length === 0 || types.length === 0)
+  const hasDates = monthly.length > 0;
+  const chartNotice = rows.length > 0 && (!hasDates || types.length === 0)
     ? "This dataset is missing parsed date or category fields. Re-upload it to apply the improved column matching."
     : null;
   const points = useMemo(() => rows.filter(r => r.latitude != null && r.longitude != null).map(r => ({ lat: r.latitude!, lng: r.longitude! })), [rows]);
@@ -141,15 +142,17 @@ function Dashboard() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl p-5">
           <div className="font-display font-semibold mb-4">Hour-of-Day Activity</div>
           <div className="h-[420px]">
-            <ResponsiveContainer>
-              <BarChart data={hours}>
-                <CartesianGrid stroke="oklch(0.5 0.1 280 / 0.15)" />
-                <XAxis dataKey="hour" stroke="oklch(0.7 0.04 260)" fontSize={11} />
-                <YAxis stroke="oklch(0.7 0.04 260)" fontSize={11} />
-                <Tooltip contentStyle={{ background: "oklch(0.18 0.04 268)", border: "1px solid oklch(0.5 0.1 280 / 0.4)", borderRadius: 8 }} />
-                <Bar dataKey="count" fill="oklch(0.7 0.27 305)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {hasDates ? (
+              <ResponsiveContainer key={`hours-${activeId}`}>
+                <BarChart data={hours}>
+                  <CartesianGrid stroke="oklch(0.5 0.1 280 / 0.15)" />
+                  <XAxis dataKey="hour" stroke="oklch(0.7 0.04 260)" fontSize={11} />
+                  <YAxis stroke="oklch(0.7 0.04 260)" fontSize={11} />
+                  <Tooltip contentStyle={{ background: "oklch(0.18 0.04 268)", border: "1px solid oklch(0.5 0.1 280 / 0.4)", borderRadius: 8 }} />
+                  <Bar dataKey="count" fill="oklch(0.7 0.27 305)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <ChartEmpty label="No time values found" />}
           </div>
         </motion.div>
       </div>
