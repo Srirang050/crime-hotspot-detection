@@ -15,10 +15,24 @@ export type ParsedCrime = {
 const num = (v: any) => { const n = parseFloat(v); return isFinite(n) ? n : null; };
 const bool = (v: any) => v == null || v === "" ? null : ["true","t","1","yes","y"].includes(String(v).toLowerCase());
 const str = (v: any) => v == null || v === "" ? null : String(v).trim();
+const normalizeHeader = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
 function pick(row: Record<string, any>, keys: string[]): any {
-  for (const k of keys) for (const rk of Object.keys(row)) if (rk.toLowerCase().trim() === k.toLowerCase()) return row[rk];
+  const wanted = keys.map(normalizeHeader);
+  for (const rk of Object.keys(row)) if (wanted.includes(normalizeHeader(rk))) return row[rk];
   return null;
+}
+
+function applyTimeToDate(dateValue: any, timeValue: any) {
+  const d = new Date(dateValue);
+  if (isNaN(+d)) return null;
+  const t = String(timeValue ?? "").replace(/\D/g, "").padStart(4, "0");
+  if (t.length >= 4) {
+    const hours = Number(t.slice(0, -2));
+    const minutes = Number(t.slice(-2));
+    if (hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) d.setHours(hours, minutes, 0, 0);
+  }
+  return d.toISOString();
 }
 
 function rowToCrime(row: Record<string, any>): ParsedCrime | null {
@@ -26,17 +40,17 @@ function rowToCrime(row: Record<string, any>): ParsedCrime | null {
   const lng = num(pick(row, ["longitude", "lng", "lon", "long", "x coordinate", "x_coordinate", "x", "longitude_x", "lon_x"]));
   if (lat == null || lng == null) return null;
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
-  const date = pick(row, ["date", "occurred_at", "datetime", "occurrence_date", "report date", "report_date", "incident_date", "incident date", "occurred_on", "occurred_date", "date_occurred", "date_reported", "event_date", "timestamp", "time"]);
-  let occurred_at: string | null = null;
-  if (date) { const d = new Date(date); if (!isNaN(+d)) occurred_at = d.toISOString(); }
+  const date = pick(row, ["date", "occurred_at", "datetime", "occurrence_date", "report date", "report_date", "date rptd", "date_rptd", "incident_date", "incident date", "date occ", "date_occ", "occurred_on", "occurred_date", "date_occurred", "date_reported", "event_date", "timestamp", "time"]);
+  const time = pick(row, ["time occ", "time_occ", "occurrence time", "occurrence_time", "incident time", "incident_time"]);
+  const occurred_at = date ? applyTimeToDate(date, time) : null;
   return {
     occurred_at,
-    primary_type: str(pick(row, ["primary type", "primary_type", "type", "category", "offense", "offense_type", "offence", "crime", "crime_type", "crime type", "incident_type", "incident type", "offense_category", "ucr_category"])),
-    description: str(pick(row, ["description", "desc", "offense_description", "offence_description", "crime_description", "details", "summary", "narrative"])),
-    location_description: str(pick(row, ["location description", "location_description", "location", "place", "address", "premise", "premise_description", "place_of_occurrence"])),
+    primary_type: str(pick(row, ["primary type", "primary_type", "type", "category", "offense", "offense_type", "offence", "crime", "crime_type", "crime type", "incident_type", "incident type", "offense_category", "ucr_category", "crm cd desc", "crime code description"])),
+    description: str(pick(row, ["description", "desc", "offense_description", "offence_description", "crime_description", "details", "summary", "narrative", "modus operandi", "mocodes", "weapon desc", "weapon description"])),
+    location_description: str(pick(row, ["location description", "location_description", "location", "place", "address", "premise", "premise_description", "premis desc", "premis_desc", "place_of_occurrence"])),
     arrest: bool(pick(row, ["arrest"])),
     domestic: bool(pick(row, ["domestic"])),
-    district: str(pick(row, ["district", "beat", "ward", "precinct", "zone", "neighborhood", "neighbourhood", "borough", "area", "division", "sector"])),
+    district: str(pick(row, ["district", "beat", "ward", "precinct", "zone", "neighborhood", "neighbourhood", "borough", "area", "area name", "area_name", "rpt dist no", "rpt_dist_no", "division", "sector"])),
     latitude: lat, longitude: lng,
   };
 }
