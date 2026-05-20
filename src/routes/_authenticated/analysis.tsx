@@ -47,8 +47,6 @@ function Analysis() {
         g.lat += p.lat; g.lng += p.lng; g.n++;
         groups.set(r.labels[i], g);
       });
-      const sizesByLabel = new Map<number, number>();
-      [...groups.entries()].forEach(([id, g]) => sizesByLabel.set(id, g.n));
       const max = Math.max(1, ...[...groups.values()].map(g => g.n));
       const clusters = [...groups.values()].map(g => ({ lat: g.lat / g.n, lng: g.lng / g.n, size: g.n, risk: g.n / max }));
       const noise = sample.filter((_, i) => r.labels[i] === -1).slice(0, 100);
