@@ -32,8 +32,8 @@ function Analysis() {
       };
     }
     if (algo === "dbscan") {
-      // Sample down for performance on big sets
-      const sample = points.length > 1500 ? points.filter((_, i) => i % Math.ceil(points.length / 1500) === 0) : points;
+      // Grid-indexed DBSCAN handles large sets; cap only for very large datasets.
+      const sample = points.length > 20000 ? points.filter((_, i) => i % Math.ceil(points.length / 20000) === 0) : points;
       const r = dbscan(sample, eps, minPts);
       const groups = new Map<number, { lat: number; lng: number; n: number }>();
       sample.forEach((p, i) => {

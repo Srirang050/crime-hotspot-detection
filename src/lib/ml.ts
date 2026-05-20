@@ -12,67 +12,175 @@ export function haversine(a: Point, b: Point) {
   return 2 * R * Math.asin(Math.sqrt(x));
 }
 
-// ----- K-Means (k-means++) -----
-export function kmeans(points: Point[], k: number, maxIter = 50) {
-  if (points.length === 0 || k <= 0) return { centers: [], labels: [] as number[], sizes: [] as number[] };
-  k = Math.min(k, points.length);
-  // k-means++ init
-  const centers: Point[] = [points[Math.floor(Math.random() * points.length)]];
-  while (centers.length < k) {
-    const d = points.map(p => Math.min(...centers.map(c => (p.lat - c.lat) ** 2 + (p.lng - c.lng) ** 2)));
-    const sum = d.reduce((a, b) => a + b, 0) || 1;
-    let r = Math.random() * sum;
-    let idx = 0;
-    for (let i = 0; i < d.length; i++) { r -= d[i]; if (r <= 0) { idx = i; break; } }
-    centers.push(points[idx]);
+// Project lat/lng -> local planar km using equirectangular around the mean lat.
+// This makes Euclidean distance ≈ true ground distance for a city-sized region,
+// which is what makes K-Means / DBSCAN behave correctly on geo data.
+function project(points: Point[]) {
+  if (points.length === 0) return { xs: new Float64Array(0), ys: new Float64Array(0), lat0: 0, lng0: 0, kx: 111.32, ky: 111.32 };
+  let sLat = 0, sLng = 0;
+  for (const p of points) { sLat += p.lat; sLng += p.lng; }
+  const lat0 = sLat / points.length;
+  const lng0 = sLng / points.length;
+  const ky = 111.32; // km per deg lat
+  const kx = 111.32 * Math.cos((lat0 * Math.PI) / 180); // km per deg lng at lat0
+  const xs = new Float64Array(points.length);
+  const ys = new Float64Array(points.length);
+  for (let i = 0; i < points.length; i++) {
+    xs[i] = (points[i].lng - lng0) * kx;
+    ys[i] = (points[i].lat - lat0) * ky;
   }
-  const labels = new Array(points.length).fill(0);
-  for (let it = 0; it < maxIter; it++) {
-    let moved = false;
-    for (let i = 0; i < points.length; i++) {
-      let best = 0, bd = Infinity;
-      for (let j = 0; j < k; j++) {
-        const dx = points[i].lat - centers[j].lat, dy = points[i].lng - centers[j].lng;
-        const dd = dx * dx + dy * dy;
-        if (dd < bd) { bd = dd; best = j; }
-      }
-      if (labels[i] !== best) { labels[i] = best; moved = true; }
-    }
-    const sums = Array.from({ length: k }, () => ({ lat: 0, lng: 0, n: 0 }));
-    for (let i = 0; i < points.length; i++) {
-      const s = sums[labels[i]]; s.lat += points[i].lat; s.lng += points[i].lng; s.n++;
-    }
-    for (let j = 0; j < k; j++) if (sums[j].n > 0) centers[j] = { lat: sums[j].lat / sums[j].n, lng: sums[j].lng / sums[j].n };
-    if (!moved) break;
-  }
-  const sizes = Array(k).fill(0);
-  labels.forEach(l => sizes[l]++);
-  return { centers, labels, sizes };
+  return { xs, ys, lat0, lng0, kx, ky };
+}
+function unproject(x: number, y: number, lat0: number, lng0: number, kx: number, ky: number): Point {
+  return { lat: lat0 + y / ky, lng: lng0 + x / kx };
 }
 
-// ----- DBSCAN (haversine, km) -----
+// ----- K-Means (k-means++, multi-restart, equirectangular km) -----
+export function kmeans(points: Point[], k: number, maxIter = 80, restarts = 6) {
+  if (points.length === 0 || k <= 0) return { centers: [] as Point[], labels: [] as number[], sizes: [] as number[] };
+  k = Math.min(k, points.length);
+  const { xs, ys, lat0, lng0, kx, ky } = project(points);
+  const n = points.length;
+
+  let bestInertia = Infinity;
+  let bestLabels = new Int32Array(n);
+  let bestCx = new Float64Array(k);
+  let bestCy = new Float64Array(k);
+
+  for (let restart = 0; restart < restarts; restart++) {
+    // k-means++ init
+    const cx = new Float64Array(k);
+    const cy = new Float64Array(k);
+    const first = Math.floor(Math.random() * n);
+    cx[0] = xs[first]; cy[0] = ys[first];
+    const d2 = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const dx = xs[i] - cx[0], dy = ys[i] - cy[0];
+      d2[i] = dx * dx + dy * dy;
+    }
+    for (let c = 1; c < k; c++) {
+      let sum = 0;
+      for (let i = 0; i < n; i++) sum += d2[i];
+      if (sum <= 0) { cx[c] = xs[Math.floor(Math.random() * n)]; cy[c] = ys[Math.floor(Math.random() * n)]; }
+      else {
+        let r = Math.random() * sum;
+        let idx = n - 1;
+        for (let i = 0; i < n; i++) { r -= d2[i]; if (r <= 0) { idx = i; break; } }
+        cx[c] = xs[idx]; cy[c] = ys[idx];
+      }
+      for (let i = 0; i < n; i++) {
+        const dx = xs[i] - cx[c], dy = ys[i] - cy[c];
+        const dd = dx * dx + dy * dy;
+        if (dd < d2[i]) d2[i] = dd;
+      }
+    }
+
+    const labels = new Int32Array(n);
+    for (let it = 0; it < maxIter; it++) {
+      let moved = false;
+      for (let i = 0; i < n; i++) {
+        let best = 0, bd = Infinity;
+        const x = xs[i], y = ys[i];
+        for (let j = 0; j < k; j++) {
+          const dx = x - cx[j], dy = y - cy[j];
+          const dd = dx * dx + dy * dy;
+          if (dd < bd) { bd = dd; best = j; }
+        }
+        if (labels[i] !== best) { labels[i] = best; moved = true; }
+      }
+      const sx = new Float64Array(k), sy = new Float64Array(k), sn = new Int32Array(k);
+      for (let i = 0; i < n; i++) { const l = labels[i]; sx[l] += xs[i]; sy[l] += ys[i]; sn[l]++; }
+      for (let j = 0; j < k; j++) {
+        if (sn[j] > 0) { cx[j] = sx[j] / sn[j]; cy[j] = sy[j] / sn[j]; }
+        else {
+          // Empty cluster: re-seed from the point farthest from its current center
+          let far = 0, fd = -1;
+          for (let i = 0; i < n; i++) {
+            const dx = xs[i] - cx[labels[i]], dy = ys[i] - cy[labels[i]];
+            const dd = dx * dx + dy * dy;
+            if (dd > fd) { fd = dd; far = i; }
+          }
+          cx[j] = xs[far]; cy[j] = ys[far];
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+
+    let inertia = 0;
+    for (let i = 0; i < n; i++) {
+      const dx = xs[i] - cx[labels[i]], dy = ys[i] - cy[labels[i]];
+      inertia += dx * dx + dy * dy;
+    }
+    if (inertia < bestInertia) {
+      bestInertia = inertia;
+      bestLabels = labels;
+      bestCx = cx;
+      bestCy = cy;
+    }
+  }
+
+  const centers: Point[] = [];
+  for (let j = 0; j < k; j++) centers.push(unproject(bestCx[j], bestCy[j], lat0, lng0, kx, ky));
+  const sizes = Array(k).fill(0);
+  const labelsArr: number[] = new Array(n);
+  for (let i = 0; i < n; i++) { labelsArr[i] = bestLabels[i]; sizes[bestLabels[i]]++; }
+  return { centers, labels: labelsArr, sizes };
+}
+
+// ----- DBSCAN (equirectangular km + grid index, true O(n) avg) -----
 export function dbscan(points: Point[], epsKm: number, minPts: number) {
   const n = points.length;
   const labels = new Array<number>(n).fill(-2); // -2 unvisited, -1 noise
-  let cluster = 0;
-  const region = (i: number) => {
+  if (n === 0) return { labels, clusters: 0 };
+  const { xs, ys } = project(points);
+
+  // Build a uniform grid of side = eps km. Neighbor queries scan 9 cells.
+  const cell = epsKm;
+  const grid = new Map<string, number[]>();
+  const key = (cx: number, cy: number) => cx + "," + cy;
+  const cellOf = (i: number) => [Math.floor(xs[i] / cell), Math.floor(ys[i] / cell)] as const;
+  for (let i = 0; i < n; i++) {
+    const [cx, cy] = cellOf(i);
+    const k = key(cx, cy);
+    const b = grid.get(k);
+    if (b) b.push(i); else grid.set(k, [i]);
+  }
+  const eps2 = epsKm * epsKm;
+  const region = (i: number): number[] => {
     const out: number[] = [];
-    for (let j = 0; j < n; j++) if (haversine(points[i], points[j]) <= epsKm) out.push(j);
+    const [cx, cy] = cellOf(i);
+    const x = xs[i], y = ys[i];
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      const b = grid.get(key(cx + dx, cy + dy));
+      if (!b) continue;
+      for (const j of b) {
+        const ex = xs[j] - x, ey = ys[j] - y;
+        if (ex * ex + ey * ey <= eps2) out.push(j);
+      }
+    }
     return out;
   };
+
+  let cluster = 0;
   for (let i = 0; i < n; i++) {
     if (labels[i] !== -2) continue;
     const nb = region(i);
     if (nb.length < minPts) { labels[i] = -1; continue; }
     labels[i] = cluster;
-    const queue = [...nb];
-    while (queue.length) {
-      const q = queue.shift()!;
-      if (labels[q] === -1) labels[q] = cluster;
+    // BFS, dedup via labels to avoid re-querying
+    const queue: number[] = [];
+    for (const j of nb) if (j !== i && labels[j] !== cluster) { queue.push(j); }
+    let head = 0;
+    while (head < queue.length) {
+      const q = queue[head++];
+      if (labels[q] === -1) { labels[q] = cluster; continue; } // border point
       if (labels[q] !== -2) continue;
       labels[q] = cluster;
       const nb2 = region(q);
-      if (nb2.length >= minPts) queue.push(...nb2);
+      if (nb2.length >= minPts) {
+        for (const j of nb2) if (labels[j] === -2 || labels[j] === -1) queue.push(j);
+      }
     }
     cluster++;
   }
