@@ -25,15 +25,13 @@ function Analysis() {
     if (algo === "kmeans") {
       const r = kmeans(points, k);
       const max = Math.max(...r.sizes, 1);
-      // Weight each point by its cluster's relative size so the heatmap
-      // peaks where K-Means actually found the biggest hotspots.
-      const heat = points.map((p, i) => ({
-        lat: p.lat, lng: p.lng,
-        weight: 0.25 + 0.75 * (r.sizes[r.labels[i]] / max),
-      }));
+      const clusters = r.centers.map((c, i) => ({ ...c, size: r.sizes[i], risk: r.sizes[i] / max }));
+      // Keep the heat layer pinned to the same centroid coordinates as the
+      // visible K-Means cluster circles, instead of repainting raw point density.
+      const heat = clusters.map(c => ({ lat: c.lat, lng: c.lng, weight: Math.max(0.35, c.risk) }));
       return {
         heat,
-        clusters: r.centers.map((c, i) => ({ ...c, size: r.sizes[i], risk: r.sizes[i] / max })),
+        clusters,
         anomalies: [] as { lat: number; lng: number }[],
         summary: `${r.sizes.length} clusters · largest hotspot has ${Math.max(...r.sizes)} incidents`,
       };
@@ -54,14 +52,8 @@ function Analysis() {
       const max = Math.max(1, ...[...groups.values()].map(g => g.n));
       const clusters = [...groups.values()].map(g => ({ lat: g.lat / g.n, lng: g.lng / g.n, size: g.n, risk: g.n / max }));
       const noise = sample.filter((_, i) => r.labels[i] === -1).slice(0, 100);
-      // Heatmap shows ONLY clustered points (noise excluded), weighted by cluster size.
-      const heat = sample
-        .map((p, i) => ({ p, label: r.labels[i] }))
-        .filter(x => x.label >= 0)
-        .map(({ p, label }) => ({
-          lat: p.lat, lng: p.lng,
-          weight: 0.25 + 0.75 * ((sizesByLabel.get(label) ?? 1) / max),
-        }));
+      // Keep DBSCAN heat on the same dense-region centers as the cluster circles.
+      const heat = clusters.map(c => ({ lat: c.lat, lng: c.lng, weight: Math.max(0.35, c.risk) }));
       return { heat, clusters, anomalies: noise, summary: `${r.clusters} dense regions · ${noise.length} noise points` };
     }
     const scores = isolationForest(points, 50, 256);
@@ -71,10 +63,10 @@ function Analysis() {
     // Heatmap weighted by anomaly score so hot areas = the model's anomaly hotspots.
     const minS = Math.min(...scores), maxS = Math.max(...scores);
     const span = maxS - minS || 1;
-    const heat = points.map((p, i) => ({
-      lat: p.lat, lng: p.lng,
-      weight: 0.1 + 0.9 * ((scores[i] - minS) / span),
-    }));
+    const heat = points
+      .map((p, i) => ({ lat: p.lat, lng: p.lng, score: scores[i] }))
+      .filter(p => p.score >= cutoff)
+      .map(p => ({ lat: p.lat, lng: p.lng, weight: 0.35 + 0.65 * ((p.score - minS) / span) }));
     return { heat, clusters: [], anomalies: an, summary: `${an.length} anomalies (top 5% by isolation score)` };
   }, [points, algo, k, eps, minPts]);
 
